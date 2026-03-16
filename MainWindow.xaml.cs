@@ -1,303 +1,130 @@
-﻿using Octokit;
-using System;
+﻿using KatHub.KatPlugins;
+using KatHub.LolConfig;
 using System.Diagnostics;
 using System.IO;
-using System.Linq;
+using System.IO.Compression;
 using System.Net.Http;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Windows;
-using System.Threading.Tasks;
+using System.Windows.Media;
 
 namespace KatHub
 {
     public partial class MainWindow : Window
     {
+        private static readonly SolidColorBrush KatRed = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#e63946"));
+        private static readonly SolidColorBrush KatGray = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#444"));
+        private KatPluginsState currentKatPluginsState = KatPluginsState.Unknown;
+        
+
         public MainWindow()
         {
             InitializeComponent();
-            try
-            {
-
-
-                string state = calculateKatPluginsState();
-                InstallKatPluginsButton.Content = state;
-                updateKatPluginsPanel(state);
-
-                string lolConfigLockerState = CheckLolConfigLocker_State();
-                updateLolConfigLockerState(lolConfigLockerState);
-            }
-            catch
-            {
-                // ignore errors when checking installation
-            }
         }
 
-        private JarRelease jarRelease;
-        private string TOKEN = "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";
-
-
-
-        private class JarRelease
-        {
-            public string version;
-            public string downloadUrl;
-        }
-
-        private string calculateKatPluginsState()
-        {
-            string katPLuginButton;
-            if (!IsRuneliteCracked())
-            {
-                katPLuginButton = "Crackear";
-            }
-            else
-            {
-                string lastVersion = obtainLastVersion();
-                string currentVersion = obtainCurrentVersion();
-                Debug.WriteLine("Current version:" + currentVersion);
-                Debug.WriteLine("Last version:" + lastVersion);
-
-                if (currentVersion == "-1")
-                {
-                    katPLuginButton = "Install";
-                }
-                else if (currentVersion.CompareTo(lastVersion) < 0)
-                {
-                    katPLuginButton = "Update";
-                }
-                else
-                {
-                    katPLuginButton = "Installed";
-                }
-
-            }
-
-            return katPLuginButton;
-        }
-
-        private string obtainLastVersion()
+        private async void Window_Loaded(object sender, RoutedEventArgs e)
         {
             try
             {
-                var client = new GitHubClient(new ProductHeaderValue("KatHub"));
-                client.Credentials = new Credentials("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");
-                var release = client.Repository.Release.GetLatest("PaJauKat", "KatPlugins").Result;
+                currentKatPluginsState = await KatPluginsService.CalculateKatPluginsState();
+                KatPluginsMainButton.Content = currentKatPluginsState.ToFriendlyString();
+                UpdateKatPluginsPanel(currentKatPluginsState);
 
-                // Safely get version
-                string version = release?.TagName?.TrimStart('v') ?? "-1";
-
-                // Find asset whose name ends with ".jar"
-                var asset = release?.Assets?.FirstOrDefault(x => !string.IsNullOrEmpty(x?.Name) && x.Name.EndsWith(".jar"));
-
-                if (asset == null)
-                {
-                    return "-1";
-                }
-
-
-                if (string.IsNullOrEmpty(asset.Url))
-                {
-                    return "-1";
-                }
-
-                jarRelease = new JarRelease
-                {
-                    version = version,
-                    downloadUrl = asset.Url
-                };
-
-                return version;
-            }
-            catch
-            {
-                return "-1";
-            }
-        }
-
-        private string obtainCurrentVersion()
-        {
-            try
-            {
-                string localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-                string runeliteDir = Path.Combine(
-                    Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-                    ".runelite",
-                    "sideloaded-plugins"
-                );
-                string[] jars = Directory.GetFiles(runeliteDir, "KatPlugins-*.jar");
-                if (jars.Length == 0 || jars.Length > 1)
-                    return "-1";
-                string version = Path.GetFileNameWithoutExtension(jars[0]).Split('-').Last();
-                return version;
-            }
-            catch
-            {
-                return "-1";
-            }
-        }
-
-        private bool IsRuneliteCracked()
-        {
-            try
-            {
-                string crackerFileName = "EthanVannInstaller.jar";
-                string localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-                string runeliteDir = Path.Combine(localAppData, "RuneLite");
-                string configFile = Path.Combine(runeliteDir, "config.json");
-
-                if (!Directory.Exists(runeliteDir))
-                    return false;
-
-                string crackerPath = Path.Combine(runeliteDir, crackerFileName);
-                if (!File.Exists(crackerPath))
-                    return false;
-
-                if (!File.Exists(configFile))
-                    return false;
-
-                var jsonText = File.ReadAllText(configFile);
-                var node = JsonNode.Parse(jsonText);
-                if (node == null)
-                    return false;
-
-                var mainClass = node["mainClass"]?.GetValue<string>();
-                if (mainClass != "ca.arnah.runelite.LauncherHijack")
-                    return false;
-
-                if (node["classPath"] is not JsonArray classPathArray)
-                    return false;
-
-                bool hasCracker = classPathArray.Any(x => x?.GetValue<string>() == crackerFileName);
-                bool hasRuneliteJar = classPathArray.Any(x => x?.GetValue<string>() == "RuneLite.jar");
-
-                return hasCracker && hasRuneliteJar;
-            }
-            catch
-            {
-                return false;
-            }
-        }
-
-        private async Task CrackearRunelite()
-        {
-            string crackerFileName = "EthanVannInstaller.jar";
-            string localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-            string runeliteDir = Path.Combine(localAppData, "RuneLite");
-            string configFile = Path.Combine(runeliteDir, "config.json");
-
-            try
-            {
-                if (!Directory.Exists(runeliteDir))
-                {
-                    Console.WriteLine("Runelite directory not found. Please install RuneLite first.");
-                    return;
-                }
-
-                string crackerPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, crackerFileName);
-                if (!File.Exists(crackerPath))
-                {
-                    Console.WriteLine($"Cracker file '{crackerFileName}' not found in application directory.");
-                    return;
-                }
-
-                File.Copy(crackerPath, Path.Combine(runeliteDir, crackerFileName), true);
-                Console.WriteLine("Cracker file copied successfully to RuneLite directory.");
-
-                // Modificando el config.json para incluir el plugin sin perder otros datos
-                if (File.Exists(configFile))
-                {
-                    var jsonText = File.ReadAllText(configFile);
-                    var node = JsonNode.Parse(jsonText) ?? new JsonObject();
-
-                    // Establece "mainClass"
-                    node["mainClass"] = "ca.arnah.runelite.LauncherHijack";
-
-                    // Asegura que exista "classPath" como array y añade los elementos si no están
-                    JsonArray classPathArray;
-                    if (node["classPath"] is JsonArray existing)
-                    {
-                        classPathArray = existing;
-                    }
-                    else
-                    {
-                        classPathArray = new JsonArray();
-                        node["classPath"] = classPathArray;
-                    }
-
-                    bool hasCracker = classPathArray.Any(x => x?.GetValue<string>() == crackerFileName);
-                    if (!hasCracker) classPathArray.Add(crackerFileName);
-
-                    bool hasRuneliteJar = classPathArray.Any(x => x?.GetValue<string>() == "RuneLite.jar");
-                    if (!hasRuneliteJar) classPathArray.Add("RuneLite.jar");
-
-                    var options = new JsonSerializerOptions { WriteIndented = true };
-                    File.WriteAllText(configFile, node.ToJsonString(options));
-                    Console.WriteLine("Config updated successfully.");
-                }
-                else
-                {
-                    Console.WriteLine("Config file not found.");
-                }
+                var lolConfigState = await LolConfigService.CheckLolConfigLocker_State();
+                UpdateLolConfigLockerPanel(lolConfigState);
             }
             catch (Exception ex)
             {
-                Console.WriteLine(ex.ToString());
+                Debug.WriteLine("Error al cargar estados: " + ex.Message);
             }
         }
 
-        private void updateKatPluginsPanel(string state)
+
+
+        private void UpdateKatPluginsPanel(KatPluginsState state)
         {
-            if (state == "Installed")
+            // 1. Valores por defecto (Estado: Necesita acción)
+            string statusText = "";
+            Brush statusColor = Brushes.LightCoral;
+            Brush buttonColor = KatRed;
+            Visibility buttonVisibility = Visibility.Visible;
+
+            // 2. Solo cambiamos lo que es diferente para estados específicos
+            switch (state)
             {
-                InstallKatPluginsButton.Visibility = Visibility.Collapsed;
-                UninstallKatPluginsButton.Visibility = Visibility.Visible;
-                InstalledLabel.Visibility = Visibility.Visible;
+                case KatPluginsState.Unknown:
+                    statusText = "Error checking state";
+                    statusColor = Brushes.Gray;
+                    buttonVisibility = Visibility.Collapsed;
+                    break;
+
+                case KatPluginsState.Crackear:
+                    statusText = "RuneLite needs to be patched";
+                    break;
+
+                case KatPluginsState.Install:
+                    statusText = "Plugin not detected";
+                    break;
+
+                case KatPluginsState.Update:
+                    statusText = $"New version available: v{KatPluginsService.latestJarVersion}";
+                    break;
+
+                case KatPluginsState.UpToDate:
+                    statusText = $"Running latest version v{KatPluginsService.currentKatPluginsVersion} ✔";
+                    statusColor = Brushes.LightGreen;
+                    buttonColor = KatGray;
+                    break;
             }
-            else
-            {
-                InstallKatPluginsButton.Visibility = Visibility.Visible;
-                UninstallKatPluginsButton.Visibility = Visibility.Collapsed;
-                InstalledLabel.Visibility = Visibility.Collapsed;
-            }
-            InstallKatPluginsButton.Content = state;
+
+            // 3. Aplicación Única (Aquí es donde ocurre la magia)
+            KatPluginsStatusLabel.Text = statusText; // Un toque profesional: texto en Mayúsculas pequeñas
+            KatPluginsStatusLabel.Foreground = statusColor;
+            KatPluginsMainButton.Background = buttonColor;
+            KatPluginsMainButton.Visibility = buttonVisibility;
+            KatPluginsMainButton.Content = state.ToFriendlyString();
+
+            currentKatPluginsState = state;
         }
 
-        private async void InstallKatPlugins_Click(object sender, RoutedEventArgs e)
+        private static void MostrarMensaje(bool exito, string ok, string error)
         {
+            if (exito) MessageBox.Show(ok, "KatHub", MessageBoxButton.OK, MessageBoxImage.Information);
+            else MessageBox.Show(error, "KatHub", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
 
-            InstallKatPluginsButton.IsEnabled = false;
+        private async void KatPluginsMainButton_Click(object sender, RoutedEventArgs e)
+        {
+            KatPluginsMainButton.IsEnabled = false;
+            var estadoInicial = currentKatPluginsState;
+            bool exito = false;
+
             try
             {
-                var currentState = InstallKatPluginsButton.Content?.ToString() ?? "";
-                string salida = "";
-                if (currentState == "Crackear")
+                switch (estadoInicial)
                 {
-                    await CrackearRunelite();
-                    salida = calculateKatPluginsState();
-                    if(salida == "Install")
-                    {
-                        MessageBox.Show("Runelite crackeado correctamente. Ahora puedes instalar el plugin.", "KatHub", MessageBoxButton.OK, MessageBoxImage.Information);
-                    }else
-                    {
-                        MessageBox.Show("Error al crackear Runelite.", "KatHub", MessageBoxButton.OK, MessageBoxImage.Error);
-                    }
+                    case KatPluginsState.Crackear:
+                        exito = await KatPluginsService.ExecuteCrackearRunelite();
+                        MostrarMensaje(exito, "Runelite cracked successfully. You can now install the plugin.", "Error cracking Runelite.");
+                        break;
+                    case KatPluginsState.Install:
+                    case KatPluginsState.Update:
+                        exito = await KatPluginsService.ExecuteInstallOrUpdateJar(new Progress<double>(p =>
+                        {
+                            KatProgressBar.Visibility = Visibility.Visible;
+                            KatProgressBar.Value = p;
+                            KatPluginsMainButton.Content = $"Installing... {p:P0}";
+                        }));
+                        MostrarMensaje(exito, "Plugin installed/updated successfully.", "Error installing/updating the plugin.");
+                        KatProgressBar.Visibility = Visibility.Collapsed;
+                        break;
+                    case KatPluginsState.UpToDate:
+                        exito = await KatPluginsService.ExecuteUninstallJar();
+                        MostrarMensaje(exito, "Plugin uninstalled successfully.", "Error uninstalling the plugin.");
+                        break;
+                }
 
-                    return;
-                }
-                else if (currentState == "Install")
-                {
-                    await installarJar();
-                    salida = calculateKatPluginsState();
-                    if (salida == "Installed")
-                    {
-                        MessageBox.Show("Plugin instalado correctamente.", "KatHub", MessageBoxButton.OK, MessageBoxImage.Information);
-                    }
-                    else
-                    {
-                        MessageBox.Show("Error al instalar el plugin.", "KatHub", MessageBoxButton.OK, MessageBoxImage.Error);
-                    }
-                }
             }
             catch (Exception ex)
             {
@@ -305,129 +132,93 @@ namespace KatHub
             }
             finally
             {
-                InstallKatPluginsButton.IsEnabled = true;
+                currentKatPluginsState = await KatPluginsService.CalculateKatPluginsState();
+                UpdateKatPluginsPanel(currentKatPluginsState);
+                KatPluginsMainButton.IsEnabled = true;
             }
         }
 
-        private async Task installarJar()
+        private async Task InstalarAccountManager()
         {
-            try
-            {
-                if (jarRelease == null)
-                {
-                    obtainLastVersion();
-                }
-
-                if (jarRelease == null)
-                {
-                    Debug.WriteLine("Error obteniendo la última versión del plugin.");
-                    return;
-                }
-
-                string jarDir = Path.Combine(
+            string runeliteSettings = Path.Combine(
                     Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
                     ".runelite",
-                    "sideloaded-plugins"
+                    "settings.json"
                 );
-                Directory.CreateDirectory(jarDir);
-                string jarPath = Path.Combine(jarDir, $"KatPlugins-{jarRelease.version}.jar");
 
+            try
+            {
+                string text = File.ReadAllText(runeliteSettings);
+                JsonNode node = JsonNode.Parse(text) ?? new JsonObject();
+                JsonArray clientArgs;
+                if (node["clientArguments"] is JsonArray existing)
+                {
+                    clientArgs = existing;
+                }
+                else
+                {
+                    clientArgs = new JsonArray();
+                    node["clientArguments"] = clientArgs;
+                }
+                bool hasWriteCredentials = clientArgs.Any(x => x?.GetValue<string>() == "--insecure-write-credentials");
+                if (!hasWriteCredentials)
+                    clientArgs.Add("--insecure-write-credentials");
 
+                var options = new JsonSerializerOptions { WriteIndented = true };
+                File.WriteAllText(runeliteSettings, node.ToJsonString(options));
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Error modificando settings.json: " + ex.Message, "KatHub", MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            }
+
+            string appsDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "KatHub", "Apps");
+            string managerDir = Path.Combine(appsDir, "KatAccountManager");
+            string archivoZip = Path.Combine(Path.GetTempPath(), "KatAccounts.zip");
+            try
+            {
+                if (!Directory.Exists(appsDir))
+                {
+                    Directory.CreateDirectory(appsDir);
+                }
+
+                string urlDescarga = "https://github.com/PaJauKat/KatAccountManager/releases/download/v1.0/KatAccounts.zip";
 
                 using var client = new HttpClient();
                 client.DefaultRequestHeaders.UserAgent.ParseAdd("KatHub");
-                client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", TOKEN);
-                client.DefaultRequestHeaders.Accept.Clear();
-                client.DefaultRequestHeaders.Accept.Add(new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/octet-stream"));
-                client.DefaultRequestHeaders.Add("X-GitHub-Api-Version", "2022-11-28");
+                var fileBytes = await client.GetByteArrayAsync(urlDescarga);
+                await File.WriteAllBytesAsync(archivoZip, fileBytes);
 
-                var fileBytes = await client.GetByteArrayAsync(jarRelease.downloadUrl);
-                await File.WriteAllBytesAsync(jarPath, fileBytes);
+                if (Directory.Exists(managerDir)) Directory.Delete(managerDir, true);
+                ZipFile.ExtractToDirectory(archivoZip, managerDir);
 
-                Debug.WriteLine("Descargado el plugin a: " + jarPath);
+                File.Delete(archivoZip);
+                MessageBox.Show("Account Manager instalado correctamente en: " + managerDir, "KatHub", MessageBoxButton.OK, MessageBoxImage.Information);
             }
             catch (Exception ex)
             {
-                Debug.WriteLine("Error descargando el plugin: " + ex.Message);
-            }
-
-
-        }
-
-        private async Task uninstallJar()
-        {
-            try
-            {
-                string jarDir = Path.Combine(
-                    Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-                    ".runelite",
-                    "sideloaded-plugins"
-                );
-                if (!Directory.Exists(jarDir))
-                    return;
-
-                var jars = Directory.GetFiles(jarDir, "KatPlugins-*.jar");
-                foreach (var jar in jars)
-                {
-                    try
-                    {
-                        File.Delete(jar);
-                    }
-                    catch (Exception ex)
-                    {
-                        Debug.WriteLine("Failed to delete " + jar + " : " + ex.Message);
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine("Error during uninstall: " + ex.Message);
+                MessageBox.Show("Error al instalar el Account Manager: " + ex.Message, "KatHub", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
 
-        private async void UninstallKatPlugins_Click(object sender, RoutedEventArgs e)
-        {
-            UninstallKatPluginsButton.IsEnabled = false;
-            try
-            {
-                await uninstallJar();
-                string salida = calculateKatPluginsState();
-                if (salida != "Installed")
-                {
-                    MessageBox.Show("Plugin desinstalado correctamente.", "KatHub", MessageBoxButton.OK, MessageBoxImage.Information);
-                }
-                else
-                {
-                    MessageBox.Show("No se pudo desinstalar el plugin.", "KatHub", MessageBoxButton.OK, MessageBoxImage.Error);
-                }
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show(ex.Message);
-            }
-            finally
-            {
-                UninstallKatPluginsButton.IsEnabled = true;
-            }
-        }
-
-        private void LolConfigLocker_Click(object sender, RoutedEventArgs e)
+        private async void LolConfigLocker_Click(object sender, RoutedEventArgs e)
         {
             LolConfigLockerButton.IsEnabled = false;
             try
             {
                 string optionClicked = (string)LolConfigLockerButton.Content;
-                if(optionClicked == "Lock")
+                if (optionClicked == "Lock")
                 {
-                    intentarModificarLolConfig(true);
+                    LolConfigService.IntentarModificarLolConfig(true);
                 }
-                else if(optionClicked == "Unlock")
+                else if (optionClicked == "Unlock")
                 {
-                    intentarModificarLolConfig(false);
+                    LolConfigService.IntentarModificarLolConfig(false);
                 }
-                string state = CheckLolConfigLocker_State();
-                updateLolConfigLockerState(state);
+                LolConfigState state = await LolConfigService.CheckLolConfigLocker_State();
+                UpdateLolConfigLockerPanel(state);
             }
             catch (Exception ex)
             {
@@ -439,36 +230,11 @@ namespace KatHub
             }
         }
 
-        private void intentarModificarLolConfig(bool lockear)
-        {
-            string lolConfigPath = Path.Combine(
-                                @"C:\",
-                                "Riot Games",
-                                "League of Legends",
-                                "Config",
-                                "PersistedSettings.json"
-                            );
-            if (!File.Exists(lolConfigPath))
-            {
-                Debug.WriteLine("Settings file not found at: " + lolConfigPath);
-                return;
-            }
-            try
-            {
-                FileInfo fileInfo = new(lolConfigPath);
-                fileInfo.IsReadOnly = lockear;
-            }
-            catch (IOException ex)
-            {
-                Debug.WriteLine("Error modifying file attributes: " + ex.Message);
-            }
-        }
-
-        private void updateLolConfigLockerState(string state)
+        private void UpdateLolConfigLockerPanel(LolConfigState state)
         {
             switch (state)
             {
-                case "Locked":
+                case LolConfigState.Locked:
                     LolConfigLockerStatusLabel.Text = "Locked ✔";
                     LolConfigLockerStatusLabel.Foreground = System.Windows.Media.Brushes.LightGreen;
 
@@ -476,7 +242,7 @@ namespace KatHub
                     LolConfigLockerButton.IsEnabled = true;
                     LolConfigLockerButton.Visibility = Visibility.Visible;
                     break;
-                case "Unlocked":
+                case LolConfigState.Unlocked:
                     LolConfigLockerStatusLabel.Text = "Unlocked ❌";
                     LolConfigLockerStatusLabel.Foreground = System.Windows.Media.Brushes.LightCoral;
 
@@ -484,7 +250,7 @@ namespace KatHub
                     LolConfigLockerButton.IsEnabled = true;
                     LolConfigLockerButton.Visibility = Visibility.Visible;
                     break;
-                case "Error":
+                case LolConfigState.Unknown:
                     LolConfigLockerStatusLabel.Text = "Error checking state";
                     LolConfigLockerStatusLabel.Foreground = System.Windows.Media.Brushes.Gray;
 
@@ -492,45 +258,16 @@ namespace KatHub
                     LolConfigLockerButton.IsEnabled = false;
                     LolConfigLockerButton.Visibility = Visibility.Collapsed;
                     break;
-
             }
         }
 
-        private string CheckLolConfigLocker_State()
-        {
-            try
-            {
-                string lolConfigPath = Path.Combine(
-                    @"C:\",
-                    "Riot Games",
-                    "League of Legends",
-                    "Config",
-                    "PersistedSettings.json"
-                );
-
-                FileAttributes attributes = File.GetAttributes(lolConfigPath);
-                if ((attributes & FileAttributes.ReadOnly) == FileAttributes.ReadOnly)
-                {
-                    return "Locked";
-                }
-                else
-                {
-                    return "Unlocked";
-                }
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine(ex);
-                return "Error";
-            }
-
-        }
+        
 
         private void OpenAccountManager_Click(object sender, RoutedEventArgs e)
         {
             try
             {
-                Debug.WriteLine("Anal");
+                Debug.WriteLine("Anal pa katarina");
                 Process.Start("explorer.exe");
             }
             catch (Exception ex)
@@ -538,6 +275,7 @@ namespace KatHub
                 MessageBox.Show(ex.Message);
             }
         }
+
     }
-        
+
 }

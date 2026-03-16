@@ -7,7 +7,8 @@
     Width="800"
     WindowStartupLocation="CenterScreen"
     Background="#0f0f13"
-    ResizeMode="NoResize">
+    ResizeMode="NoResize"
+    Loaded="Window_Loaded">
 
     <Grid>
 
@@ -67,33 +68,33 @@
                             Grid.Column="1"
                             HorizontalAlignment="Right"
                             VerticalAlignment="Center">
-                            <TextBlock x:Name="InstalledLabel"
+                            <TextBlock x:Name="KatPluginsStatusLabel"
                                 Text="Installed ✔"
                                 Foreground="LightGreen"
                                 VerticalAlignment="Center"
-                                Visibility="Collapsed"
+                                Visibility="Visible"
                                 FontWeight="SemiBold"
                                 Margin="0,0,8,0" />
                             <Button Content="Install"
-                                x:Name="InstallKatPluginsButton"
+                                x:Name="KatPluginsMainButton"
                                 Width="100"
                                 Height="30"
                                 Background="#e63946"
                                 Foreground="White"
                                 BorderThickness="0"
                                 Cursor="Hand"
-                                Click="InstallKatPlugins_Click"
-                                Margin="0,0,8,0" />
-                            <Button Content="Uninstall"
-                                x:Name="UninstallKatPluginsButton"
-                                Width="100"
-                                Height="30"
-                                Background="#444"
-                                Foreground="White"
-                                BorderThickness="0"
-                                Cursor="Hand"
-                                Click="UninstallKatPlugins_Click"
-                                Visibility="Collapsed" />
+                                Click="KatPluginsMainButton_Click"
+                                Margin="0,0,8,0"/>
+                            <ProgressBar x:Name="KatProgressBar" 
+                                 Height="4" 
+                                 Foreground="#e63946" 
+                                 Background="Transparent" 
+                                 BorderThickness="0" 
+                                 Minimum="0" 
+                                 Maximum="100"
+                                 Visibility="Collapsed"
+                                 Margin="0,2,8,0"/>
+
                         </StackPanel>
                     </Grid>
 
@@ -136,7 +137,7 @@
                             <ColumnDefinition Width="*" />
                             <ColumnDefinition Width="Auto" />
                         </Grid.ColumnDefinitions>
-                        
+
                         <TextBlock Text="LOL config locker"
                                 Foreground="White"
                                 FontSize="16"
@@ -175,4 +176,4 @@
 
     </Grid>
 
-</Window>   
+</Window>
