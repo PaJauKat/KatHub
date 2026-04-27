@@ -6,7 +6,8 @@ namespace KatHub.KatPlugins
         Crackear,
         Install,
         Update,
-        UpToDate
+        UpToDate,
+        MultipleVersions
     }
 
     public static class KatPluginsStateExtensions
@@ -19,6 +20,7 @@ namespace KatHub.KatPlugins
                 KatPluginsState.Install => "Install",
                 KatPluginsState.Update => "Update",
                 KatPluginsState.UpToDate => "Unistall",
+                KatPluginsState.MultipleVersions => "Fix",
                 _ => "Desconocido"
             };
         }

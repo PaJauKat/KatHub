@@ -16,6 +16,7 @@ namespace KatHub
         private static readonly SolidColorBrush KatRed = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#e63946"));
         private static readonly SolidColorBrush KatGray = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#444"));
         private KatPluginsState currentKatPluginsState = KatPluginsState.Unknown;
+        public static string GITHUB_TOKEN = string.Empty;
         
 
         public MainWindow()
@@ -27,8 +28,8 @@ namespace KatHub
         {
             try
             {
+                GITHUB_TOKEN = await GetGitHubTokenFromConfig();
                 currentKatPluginsState = await KatPluginsService.CalculateKatPluginsState();
-                KatPluginsMainButton.Content = currentKatPluginsState.ToFriendlyString();
                 UpdateKatPluginsPanel(currentKatPluginsState);
 
                 var lolConfigState = await LolConfigService.CheckLolConfigLocker_State();
@@ -40,7 +41,27 @@ namespace KatHub
             }
         }
 
-
+        private static async Task<string> GetGitHubTokenFromConfig()
+        {
+            string configPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "appsettings.json");
+            if (!File.Exists(configPath))
+            {
+                Debug.WriteLine("config.json not found at: " + configPath);
+                return string.Empty;
+            }
+            try
+            {
+                string jsonText = File.ReadAllText(configPath);
+                var node = JsonNode.Parse(jsonText);
+                string token = node?["GitHub"]?["Token"]?.GetValue<string>() ?? string.Empty;
+                return token;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine("Error reading config.json: " + ex.Message);
+                return string.Empty;
+            }
+        }
 
         private void UpdateKatPluginsPanel(KatPluginsState state)
         {
@@ -68,14 +89,18 @@ namespace KatHub
                     break;
 
                 case KatPluginsState.Update:
-                    statusText = $"New version available: v{KatPluginsService.latestJarVersion}";
+                    statusText = $"New version available: v{KatPluginsService.LatestJarVersion}";
                     break;
 
                 case KatPluginsState.UpToDate:
-                    statusText = $"Running latest version v{KatPluginsService.currentKatPluginsVersion} ✔";
+                    statusText = $"Running latest version v{KatPluginsService.CurrentKatPluginsVersion} ✔";
                     statusColor = Brushes.LightGreen;
                     buttonColor = KatGray;
                     break;
+                case KatPluginsState.MultipleVersions:
+                    statusText = $"Multiple versions detected!";
+                    break;
+
             }
 
             // 3. Aplicación Única (Aquí es donde ocurre la magia)
@@ -122,6 +147,16 @@ namespace KatHub
                     case KatPluginsState.UpToDate:
                         exito = await KatPluginsService.ExecuteUninstallJar();
                         MostrarMensaje(exito, "Plugin uninstalled successfully.", "Error uninstalling the plugin.");
+                        break;
+                    case KatPluginsState.MultipleVersions:
+                        await KatPluginsService.ExecuteUninstallJar();
+                        exito = await KatPluginsService.ExecuteInstallOrUpdateJar(new Progress<double>(p =>
+                        {
+                            KatProgressBar.Visibility = Visibility.Visible;
+                            KatProgressBar.Value = p;
+                            KatPluginsMainButton.Content = $"Installing... {p:P0}";
+                        }));
+                        MostrarMensaje(exito, "Multiple versions issue resolved. Plugin installed successfully.", "Error resolving multiple versions issue.");
                         break;
                 }
 

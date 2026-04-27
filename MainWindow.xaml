@@ -61,6 +61,7 @@
                         <TextBlock Text="KatPlugins"
                             Foreground="White"
                             FontSize="16"
+                            FontWeight="DemiBold"
                             VerticalAlignment="Center"
                             Grid.Column="0" />
 
@@ -83,8 +84,13 @@
                                 Foreground="White"
                                 BorderThickness="0"
                                 Cursor="Hand"
-                                Click="KatPluginsMainButton_Click"
-                                Margin="0,0,8,0"/>
+                                Click="KatPluginsMainButton_Click">
+                                <Button.Resources>
+                                    <Style TargetType="Border">
+                                        <Setter Property="CornerRadius" Value="6"/>
+                                    </Style>
+                                </Button.Resources>
+                            </Button>
                             <ProgressBar x:Name="KatProgressBar" 
                                  Height="4" 
                                  Foreground="#e63946" 
@@ -110,6 +116,7 @@
                         <TextBlock Text="KatAccountManager"
                                 Foreground="White"
                                 FontSize="16"
+                                FontWeight="DemiBold"
                                 VerticalAlignment="Center"/>
 
                         <Button Content="Open"
@@ -120,7 +127,13 @@
                             Foreground="White"
                             BorderThickness="0"
                             Cursor="Hand"
-                            Click="OpenAccountManager_Click"/>
+                            Click="OpenAccountManager_Click">
+                            <Button.Resources>
+                                <Style TargetType="Border">
+                                    <Setter Property="CornerRadius" Value="6"/>
+                                </Style>
+                            </Button.Resources>
+                        </Button>
 
                     </Grid>
 
@@ -141,6 +154,7 @@
                         <TextBlock Text="LOL config locker"
                                 Foreground="White"
                                 FontSize="16"
+                                FontWeight="DemiBold"
                                 VerticalAlignment="Center"/>
 
                         <StackPanel Orientation="Horizontal"
@@ -164,7 +178,13 @@
                                 Foreground="White"
                                 BorderThickness="0"
                                 Cursor="Hand"
-                                Click="LolConfigLocker_Click"/>
+                                Click="LolConfigLocker_Click">
+                                <Button.Resources>
+                                    <Style TargetType="Border">
+                                        <Setter Property="CornerRadius" Value="6"/>
+                                    </Style>
+                                </Button.Resources>
+                            </Button>
                         </StackPanel>
                     </Grid>
                 </Border>

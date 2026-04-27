@@ -1,5 +1,3 @@
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Configuration.Json;
 using Octokit;
 using System.Diagnostics;
 using System.IO;
@@ -11,13 +9,11 @@ namespace KatHub.KatPlugins
 {
 	public class KatPluginsService
 	{
+
 		private static JarRelease? jarRelease;
-		public static string currentKatPluginsVersion = "1.0";
-		public static string latestJarVersion = "1.0";
+		public static string CurrentKatPluginsVersion { get; private set; } = "1.0";
+		public static string LatestJarVersion { get; private set; } = "1.0";
 		private static KatPluginsService instance;
-
-		string jarUrl = "https://okuzxwevtoxvrsilaldt.supabase.co/storage/v1/object/public/KatPlugins/KatPlugins-1.9.jar";
-
 
 
         public static async Task<bool> ExecuteCrackearRunelite() 
@@ -110,12 +106,9 @@ namespace KatHub.KatPlugins
 				Directory.CreateDirectory(jarDir);
 				string jarPath = Path.Combine(jarDir, $"KatPlugins-{jarRelease.Version}.jar");
 
-				var config = new ConfigurationBuilder().AddJsonFile("appsettings.json").Build();
-				string TOKEN = config["GitHubToken"] ?? throw new Exception("GitHub token not found in configuration.");
-
                 var client = new HttpClient();
 				client.DefaultRequestHeaders.UserAgent.ParseAdd("KatHub");
-				client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", TOKEN);
+				client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", MainWindow.GITHUB_TOKEN);
 				client.DefaultRequestHeaders.Accept.Clear();
 				client.DefaultRequestHeaders.Accept.Add(new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/octet-stream"));
 				client.DefaultRequestHeaders.Add("X-GitHub-Api-Version", "2022-11-28");
@@ -160,11 +153,11 @@ namespace KatHub.KatPlugins
 					".runelite",
 					"sideloaded-plugins"
 				);
-				string[] jars = Directory.GetFiles(jarDir, "KatPlugins-*.jar");
+				string[] jars = Directory.GetFiles(jarDir, "Kat*.jar");
 				foreach (var jar in jars)
 				{
 					File.Delete(jar);
-					Debug.WriteLine("Eliminado el plugin: " + jar);
+					Debug.WriteLine("Eliminando: " + jar);
 				}
 				return true;
 			}
@@ -185,16 +178,19 @@ namespace KatHub.KatPlugins
 					return KatPluginsState.Crackear;
 				}
 
-				latestJarVersion = await ObtainLastVersion();
-				currentKatPluginsVersion = ObtainCurrentVersion();
-				Debug.WriteLine("Current version:" + currentKatPluginsVersion);
-				Debug.WriteLine("Last version:" + latestJarVersion);
-
-				if (currentKatPluginsVersion == "-1")
+				LatestJarVersion = await ObtainLastVersion();
+				CurrentKatPluginsVersion = ObtainCurrentVersion();
+				Debug.WriteLine("Current version:" + CurrentKatPluginsVersion);
+				Debug.WriteLine("Last version:" + LatestJarVersion);
+				if(CurrentKatPluginsVersion == "-69")
+				{
+					return KatPluginsState.MultipleVersions;
+				}
+				if (CurrentKatPluginsVersion == "-1")
 				{
 					return KatPluginsState.Install;
 				}
-				else if (currentKatPluginsVersion.CompareTo(latestJarVersion) < 0)
+				else if (CurrentKatPluginsVersion.CompareTo(LatestJarVersion) < 0)
 				{
 					return KatPluginsState.Update;
 				}
@@ -255,36 +251,27 @@ namespace KatHub.KatPlugins
 
 		private static async Task<string> ObtainLastVersion()
 		{
-			try
-			{
-                var config = new ConfigurationBuilder().AddJsonFile("appsettings.json").Build();
-                string TOKEN = config["GitHubToken"] ?? throw new Exception("GitHub token not found in configuration.");
-                var client = new GitHubClient(new ProductHeaderValue("KatHub"));
-				client.Credentials = new Credentials(TOKEN);
+            var client = new GitHubClient(new ProductHeaderValue("KatHub"));
+			client.Credentials = new Credentials(MainWindow.GITHUB_TOKEN);
 
-				var release = await client.Repository.Release.GetLatest("PaJauKat", "KatPlugins");
-				string version = release?.TagName?.TrimStart('v') ?? "-1";
+			var release = await client.Repository.Release.GetLatest("PaJauKat", "KatPlugins");
+			string version = release?.TagName?.TrimStart('v') ?? "-1";
 
-				// Find asset whose name ends with ".jar"
-				var asset = release?.Assets?.FirstOrDefault(x => !string.IsNullOrEmpty(x?.Name) && x.Name.EndsWith(".jar"));
+			// Find asset whose name ends with ".jar"
+			var asset = release?.Assets?.FirstOrDefault(x => !string.IsNullOrEmpty(x?.Name) && x.Name.EndsWith(".jar"));
 
-				if (asset == null || string.IsNullOrEmpty(asset.Url))
-				{
-					return "-1";
-				}
-
-				jarRelease = new JarRelease
-				{
-					Version = version,
-					DownloadUrl = asset.Url
-				};
-
-				return version;
-			}
-			catch
+			if (asset == null || string.IsNullOrEmpty(asset.Url))
 			{
 				return "-1";
 			}
+
+			jarRelease = new JarRelease
+			{
+				Version = version,
+				DownloadUrl = asset.Url
+			};
+
+			return version;
 		}
 
 		private static string ObtainCurrentVersion()
@@ -298,7 +285,9 @@ namespace KatHub.KatPlugins
 					"sideloaded-plugins"
 				);
 				string[] jars = Directory.GetFiles(runeliteDir, "KatPlugins-*.jar");
-				if (jars.Length == 0 || jars.Length > 1)
+				if (jars.Length > 1)
+                    return "-69";
+                if (jars.Length == 0)
 					return "-1";
 				string version = Path.GetFileNameWithoutExtension(jars[0]).Split('-').Last();
 				return version;
