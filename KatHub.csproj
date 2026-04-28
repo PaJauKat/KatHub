@@ -29,9 +29,10 @@
 
 	<ItemGroup>
 		<PackageReference Include="Autoupdater.NET.Official" Version="1.9.2" />
-		<PackageReference Include="Microsoft.Extensions.Configuration" Version="10.0.77" />
-		<PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="10.0.77" />
+		<PackageReference Include="Microsoft.Extensions.Configuration" Version="10.0.7" />
+		<PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="10.0.7" />
 		<PackageReference Include="Octokit" Version="14.0.0" />
-		<PackageReference Include="Supabase" Version="1.1.1" />	</ItemGroup>
+		<PackageReference Include="Supabase" Version="1.1.1" />	
+	</ItemGroup>
 
 </Project>

@@ -151,12 +151,12 @@
                                 FontWeight="DemiBold"
                                 VerticalAlignment="Center"/>
 
-                        <Button Content="Open"
+                        <Button Content="Unavailable"
                             Width="100"
                             Height="30"
                             HorizontalAlignment="Right"
-                            Background="#e63946"
-                            Foreground="White"
+                            Background="#2a2a35"
+                            Foreground="#888"
                             BorderThickness="0"
                             Cursor="Hand"
                             Click="OpenAccountManager_Click">
