@@ -2,6 +2,7 @@ using Octokit;
 using System.Diagnostics;
 using System.IO;
 using System.Net.Http;
+using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 
@@ -9,130 +10,182 @@ namespace KatHub.KatPlugins
 {
 	public class KatPluginsService
 	{
-
 		private static JarRelease? jarRelease;
 		public static string CurrentKatPluginsVersion { get; private set; } = "1.0";
 		public static string LatestJarVersion { get; private set; } = "1.0";
-		private static KatPluginsService instance;
+		private static readonly string gitHubRepoOwner = "PaJauKat";
+		private static readonly string gitHubRepoName = "PaJau-plugins";
 
 
-        public static async Task<bool> ExecuteCrackearRunelite() 
+        public static async Task<bool> ExecuteCrackearRunelite(bool crack) 
 		{
-			string crackerFileName = "EthanVannInstaller.jar";
-			string localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-			string runeliteDir = Path.Combine(localAppData, "RuneLite");
-			string configFile = Path.Combine(runeliteDir, "config.json");
+            string crackerFileName = "EthanVannInstaller.jar";
+            string localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+            string runeliteDir = Path.Combine(localAppData, "RuneLite");
+            string configFile = Path.Combine(runeliteDir, "config.json");
 
-			try
+            if (!Directory.Exists(runeliteDir))
 			{
-				if (!Directory.Exists(runeliteDir))
+				throw new DirectoryNotFoundException("Runelite directory not found. Please install RuneLite first.");
+			}
+
+            if (crack)
+            {
+				string destinationPath = Path.Combine(runeliteDir, crackerFileName);
+
+                var assembly = Assembly.GetExecutingAssembly();
+                var names = assembly.GetManifestResourceNames();
+                foreach (var name in names) Debug.WriteLine($"Recurso encontrado: {name}");
+
+                var stream = assembly.GetManifestResourceStream(crackerFileName);
+
+                // Si no se encuentra como recurso embebido, intenta buscarlo en el directorio de la aplicación
+                if (stream == null)
 				{
-					throw new DirectoryNotFoundException("Runelite directory not found. Please install RuneLite first.");
-				}
-
-				string crackerPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, crackerFileName);
-				if (!File.Exists(crackerPath))
-				{
-					throw new FileNotFoundException($"Cracker file '{crackerFileName}' not found in application directory.");
-				}
-
-				File.Copy(crackerPath, Path.Combine(runeliteDir, crackerFileName), true);
-				Console.WriteLine("Cracker file copied successfully to RuneLite directory.");
-
-				// Modificando el config.json para incluir el plugin sin perder otros datos
-				if (File.Exists(configFile))
-				{
-					var jsonText = File.ReadAllText(configFile);
-					var node = JsonNode.Parse(jsonText) ?? new JsonObject();
-
-					// Establece "mainClass"
-					node["mainClass"] = "ca.arnah.runelite.LauncherHijack";
-
-					// Asegura que exista "classPath" como array y añade los elementos si no están
-					JsonArray classPathArray;
-					if (node["classPath"] is JsonArray existing)
+					string crackerFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, crackerFileName);
+					if (File.Exists(crackerFilePath))
 					{
-						classPathArray = existing;
-					}
-					else
-					{
-						classPathArray = new JsonArray();
-						node["classPath"] = classPathArray;
-					}
+                        stream = new FileStream(crackerFilePath, System.IO.FileMode.Open, FileAccess.Read);
+                    }
+                }
 
-					bool hasCracker = classPathArray.Any(x => x?.GetValue<string>() == crackerFileName);
-					if (!hasCracker) classPathArray.Add(crackerFileName);
+				if(stream == null)
+				{
+					throw new FileNotFoundException("Cracker JAR not found as embedded resource or in application directory.", crackerFileName);
+                }
 
-					bool hasRuneliteJar = classPathArray.Any(x => x?.GetValue<string>() == "RuneLite.jar");
-					if (!hasRuneliteJar) classPathArray.Add("RuneLite.jar");
+                using (stream)
+				{
+                    using var fileStream = new FileStream(destinationPath, System.IO.FileMode.Create, FileAccess.Write);
+                    stream.CopyTo(fileStream);
+                }
+                   
 
-					var options = new JsonSerializerOptions { WriteIndented = true };
+                Debug.WriteLine("Cracker file copied successfully to RuneLite directory.");
+
+                // Modificando el config.json para incluir el plugin sin perder otros datos
+                if (File.Exists(configFile))
+                {
+                    var jsonText = File.ReadAllText(configFile);
+                    var node = JsonNode.Parse(jsonText) ?? new JsonObject();
+
+                    // Establece "mainClass"
+                    node["mainClass"] = "ca.arnah.runelite.LauncherHijack";
+
+                    // Asegura que exista "classPath" como array y añade los elementos si no están
+                    JsonArray classPathArray;
+                    if (node["classPath"] is JsonArray existing)
+                    {
+                        classPathArray = existing;
+                    }
+                    else
+                    {
+                        classPathArray = new JsonArray();
+                        node["classPath"] = classPathArray;
+                    }
+
+                    bool hasCracker = classPathArray.Any(x => x?.GetValue<string>() == crackerFileName);
+                    if (!hasCracker) classPathArray.Add(crackerFileName);
+
+                    bool hasRuneliteJar = classPathArray.Any(x => x?.GetValue<string>() == "RuneLite.jar");
+                    if (!hasRuneliteJar) classPathArray.Add("RuneLite.jar");
+
+                    var options = new JsonSerializerOptions { WriteIndented = true };
                     File.WriteAllText(configFile, node.ToJsonString(options));
-					Console.WriteLine("Config updated successfully.");
-					return true;
-				}
-				else
-				{
-					Console.WriteLine("Config file not found.");
-					return false;
-				}
-			}
-			catch (Exception ex)
-			{
-				Console.WriteLine(ex.ToString());
-				return false;
-			}
-		}
+                    Debug.WriteLine("Config updated successfully.");
+                    return true;
+                }
+                else
+                {
+                    Debug.WriteLine("Config file not found.");
+                    return false;
+                }
+            }
+            else
+            {
+                if (File.Exists(configFile))
+                {
+                    var jsonText = File.ReadAllText(configFile);
+                    var node = JsonNode.Parse(jsonText) ?? new JsonObject();
+
+                    // Establece "mainClass"
+                    node["mainClass"] = "net.runelite.launcher.Launcher";
+
+                    // Asegura que exista "classPath" como array y añade los elementos si no están
+                    JsonArray classPathArray;
+                    if (node["classPath"] is JsonArray existing)
+                    {
+                        classPathArray = existing;
+                    }
+                    else
+                    {
+                        classPathArray = new JsonArray();
+                        node["classPath"] = classPathArray;
+                    }
+
+					classPathArray.RemoveAll(x => x?.GetValue<string>() == crackerFileName);
+
+                    bool hasRuneliteJar = classPathArray.Any(x => x?.GetValue<string>() == "RuneLite.jar");
+                    if (!hasRuneliteJar) classPathArray.Add("RuneLite.jar");
+
+                    var options = new JsonSerializerOptions { WriteIndented = true };
+                    File.WriteAllText(configFile, node.ToJsonString(options));
+                    Debug.WriteLine("Config updated successfully.");
+                    return true;
+                }
+                else
+                {
+                    Debug.WriteLine("Config file not found.");
+                    return false;
+                }
+            }
+        }
 
 		public static async Task<bool> ExecuteInstallOrUpdateJar(IProgress<double> progress)
 		{
 			try
 			{
-				if (jarRelease == null)
+
+                string jarDir = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+                    ".runelite",
+                    "sideloaded-plugins"
+                );
+                Directory.CreateDirectory(jarDir);
+                
+
+                var client = new GitHubClient(new ProductHeaderValue("KatHub"));
+				var latestRelease = await client.Repository.Release.GetLatest(gitHubRepoOwner, gitHubRepoName);
+				var asset = latestRelease.Assets.FirstOrDefault(x => x?.Name?.EndsWith(".jar") == true);
+				
+				if (asset != null)
 				{
-					await ObtainLastVersion();
-				}
+                    var jarFileName = asset.Name!;
+                    string jarPath = Path.Combine(jarDir, jarFileName);
 
-				if (jarRelease == null)
-				{
-					throw new Exception("Error obteniendo la última versión del Jar.");
-				}
-
-				string jarDir = Path.Combine(
-					Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-					".runelite",
-					"sideloaded-plugins"
-				);
-				Directory.CreateDirectory(jarDir);
-				string jarPath = Path.Combine(jarDir, $"KatPlugins-{jarRelease.Version}.jar");
-
-                var client = new HttpClient();
-				client.DefaultRequestHeaders.UserAgent.ParseAdd("KatHub");
-				client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", MainWindow.GITHUB_TOKEN);
-				client.DefaultRequestHeaders.Accept.Clear();
-				client.DefaultRequestHeaders.Accept.Add(new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/octet-stream"));
-				client.DefaultRequestHeaders.Add("X-GitHub-Api-Version", "2022-11-28");
-
-				using var response = await client.GetAsync(jarRelease.DownloadUrl, HttpCompletionOption.ResponseHeadersRead); 
-				response.EnsureSuccessStatusCode();
-				var totalBytes = response.Content.Headers.ContentLength ?? -1L;
-				using var contentStream = await response.Content.ReadAsStreamAsync();
-				using var fileStream = new FileStream(jarPath, System.IO.FileMode.Create, FileAccess.Write, FileShare.None, 8192, true);
-
-				var buffer = new byte[8192];
-				long totalRead = 0;
-				int bytesRead;
-
-				while ((bytesRead = await contentStream.ReadAsync(buffer, 0, buffer.Length)) > 0)
-				{
-					await fileStream.WriteAsync(buffer, 0, bytesRead);
-					totalRead += bytesRead;
-					if (totalBytes > 0)
+                    using var httpClient = new HttpClient();
+					var downloadUrl = asset.BrowserDownloadUrl ?? throw new Exception("Asset download URL is null");
+					var response = await httpClient.GetAsync(downloadUrl);
+					response.EnsureSuccessStatusCode();
+					var totalBytes = response.Content.Headers.ContentLength ?? -1L;
+					var downloadedBytes = 0L;
+					using var contentStream = await response.Content.ReadAsStreamAsync();
+					using var fileStream = new FileStream(jarPath, System.IO.FileMode.Create, FileAccess.Write, FileShare.None, 8192, true);
+					var buffer = new byte[8192];
+					int bytesRead;
+					while ((bytesRead = await contentStream.ReadAsync(buffer.AsMemory(0, buffer.Length))) > 0)
 					{
-						var porcentaje = (totalRead * 100) / totalBytes;
-						progress.Report(porcentaje);
+						await fileStream.WriteAsync(buffer.AsMemory(0, bytesRead));
+						downloadedBytes += bytesRead;
+						if (totalBytes > 0)
+						{
+							double progressValue = (double)downloadedBytes / totalBytes * 100;
+							progress.Report(progressValue);
+						}
 					}
 				}
+
+                
 				return true;
 
 
@@ -179,7 +232,7 @@ namespace KatHub.KatPlugins
 				}
 
 				LatestJarVersion = await ObtainLastVersion();
-				CurrentKatPluginsVersion = ObtainCurrentVersion();
+				CurrentKatPluginsVersion = ObtainInstalledVersion();
 				Debug.WriteLine("Current version:" + CurrentKatPluginsVersion);
 				Debug.WriteLine("Last version:" + LatestJarVersion);
 				if(CurrentKatPluginsVersion == "-69")
@@ -204,7 +257,6 @@ namespace KatHub.KatPlugins
 				Debug.WriteLine("Error calculando el estado de KatPlugins: " + ex.Message);
 				return KatPluginsState.Unknown;
 			}
-
 		}
 
 		private static async Task<bool> IsRuneliteCracked()
@@ -252,13 +304,11 @@ namespace KatHub.KatPlugins
 		private static async Task<string> ObtainLastVersion()
 		{
             var client = new GitHubClient(new ProductHeaderValue("KatHub"));
-			client.Credentials = new Credentials(MainWindow.GITHUB_TOKEN);
-
-			var release = await client.Repository.Release.GetLatest("PaJauKat", "KatPlugins");
+			var release = await client.Repository.Release.GetLatest(gitHubRepoOwner, gitHubRepoName);
 			string version = release?.TagName?.TrimStart('v') ?? "-1";
 
 			// Find asset whose name ends with ".jar"
-			var asset = release?.Assets?.FirstOrDefault(x => !string.IsNullOrEmpty(x?.Name) && x.Name.EndsWith(".jar"));
+			var asset = release?.Assets?.FirstOrDefault(x => x?.Name?.EndsWith(".jar") == true);
 
 			if (asset == null || string.IsNullOrEmpty(asset.Url))
 			{
@@ -274,7 +324,7 @@ namespace KatHub.KatPlugins
 			return version;
 		}
 
-		private static string ObtainCurrentVersion()
+		private static string ObtainInstalledVersion()
 		{
 			try
 			{
@@ -284,7 +334,7 @@ namespace KatHub.KatPlugins
 					".runelite",
 					"sideloaded-plugins"
 				);
-				string[] jars = Directory.GetFiles(runeliteDir, "KatPlugins-*.jar");
+				string[] jars = Directory.GetFiles(runeliteDir, "Kat*.jar");
 				if (jars.Length > 1)
                     return "-69";
                 if (jars.Length == 0)

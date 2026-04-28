@@ -5,20 +5,7 @@ namespace KatHub.LolConfig
 {
     public class LolConfigService
     {
-        private static LolConfigService instance;
-        private static string configFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "lol_config.json");
-        private static LolConfigState currentState = LolConfigState.Unknown;
-        public static LolConfigService Instance
-        {
-            get
-            {
-                if (instance == null)
-                {
-                    instance = new LolConfigService();
-                }
-                return instance;
-            }
-        }
+        
         public static async void IntentarModificarLolConfig(bool lockear)
         {
             string lolConfigPath = Path.Combine(
