@@ -20,22 +20,56 @@
             </LinearGradientBrush>
         </Grid.Background>
 
-        <!-- Title -->
-        <TextBlock Text="KatHub"
-                FontSize="28"
-                Foreground="#e63946"
-                Margin="20,20,0,0"
-                VerticalAlignment="Top"
-                HorizontalAlignment="Left"
-                FontWeight="Bold"/>
+        <!-- 2. Título y Subtítulo (Izquierda) -->
+        <StackPanel VerticalAlignment="Top" HorizontalAlignment="Left" Margin="20,20,0,0">
+            <TextBlock Text="KatHub"
+                   FontSize="28"
+                   Foreground="#e63946"
+                   FontWeight="Bold"/>
 
-        <!-- Subtitle -->
-        <TextBlock Text="Private Plugin Suite"
-                FontSize="12"
-                Foreground="#888"
-                Margin="22,60,0,0"
-                VerticalAlignment="Top"
-                HorizontalAlignment="Left"/>
+            <TextBlock Text="Private Plugin Suite"
+                   FontSize="12"
+                   Foreground="#888"
+                   Margin="2,0,0,0"/>
+        </StackPanel>
+
+        <!-- 3. Versión y Update (Derecha) -->
+        <StackPanel VerticalAlignment="Top" 
+                HorizontalAlignment="Right" 
+                Margin="0,10,15,0">
+
+            <TextBlock x:Name="lblVersion" 
+                   Text="v1.0.0" 
+                   FontSize="11" 
+                   Foreground="Gray" 
+                   HorizontalAlignment="Right"/>
+
+            <TextBlock x:Name="lblUpdate" 
+                   Text="¡Actualización disponible!" 
+                   FontSize="12" 
+                   FontWeight="Bold" 
+                   Foreground="#FF4500" 
+                   Visibility="Collapsed" 
+                   Cursor="Hand"
+                   HorizontalAlignment="Right"
+                   MouseDown="LblUpdate_MouseDown">
+                <TextBlock.Style>
+                    <Style TargetType="TextBlock">
+                        <Style.Triggers>
+                            <EventTrigger RoutedEvent="Loaded">
+                                <BeginStoryboard>
+                                    <Storyboard RepeatBehavior="Forever">
+                                        <DoubleAnimation Storyboard.TargetProperty="Opacity"
+                                                     From="1.0" To="0.5" Duration="0:0:1" 
+                                                     AutoReverse="True"/>
+                                    </Storyboard>
+                                </BeginStoryboard>
+                            </EventTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </TextBlock.Style>
+            </TextBlock>
+        </StackPanel>
 
 
         <!-- Main Panel -->

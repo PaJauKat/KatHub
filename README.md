@@ -32,12 +32,17 @@ Utility that locks League of Legends config files to prevent unwanted changes.
 - Windows OS (for full compatibility with GUI features)
 
 ### Setup
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/yourusername/katHub.git 
-2. Open the solution in Visual Studio
+1. Download the latest [release](https://github.com/PaJauKat/KatHub/releases/latest/download/KatHub.exe)
+2. Run the application (.NET runtime will be required if not already installed)
 
-3. Build the project: `Build → Build Solution`
+### Usage
+1. Open KatHub 
+2. Click on the desired project (e.g., KatPlugins or KatAccountManager)
 
-4. Run the application: `F5 or Start Debugging`
-
+### Contributing
+1. Fork the repository
+2. Create a new branch for your feature or bug fix
+3. Make your changes and commit them with clear messages
+4. Push your changes to your fork
+5. Open a pull request against the main repository
+6. Wait for review and feedback from the maintainers

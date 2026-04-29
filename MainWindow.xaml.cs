@@ -1,6 +1,7 @@
 ﻿using AutoUpdaterDotNET;
 using KatHub.KatPlugins;
 using KatHub.LolConfig;
+using Octokit;
 using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
@@ -8,6 +9,7 @@ using System.Net.Http;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Windows;
+using System.Windows.Input;
 using System.Windows.Media;
 
 namespace KatHub
@@ -45,14 +47,65 @@ namespace KatHub
 
         public void CheckForUpdates()
         {
-            // Configuraciones primero
-            AutoUpdater.ShowRemindLaterButton = false;
-            AutoUpdater.LetUserSelectRemindLater = false;
-
-            // Si quieres que la ventana sea pequeña y no una página completa:
+            // Hace que la ventana sea mucho más pequeña y simple
+            AutoUpdater.ApplicationExitEvent += () => { /* Aquí podrías cerrar procesos si fuera necesario */ };
             AutoUpdater.ShowSkipButton = false;
+            AutoUpdater.ShowRemindLaterButton = false;
 
-            AutoUpdater.Start("https://raw.githubusercontent.com/PaJauKat/KatHub/main/UpdateCheck.xml");
+            // Evita que se abra el formulario estándar "grande"
+            // y fuerza una interfaz más compacta si está disponible
+            AutoUpdater.UpdateMode = Mode.Forced;
+
+
+            var currentVersion = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version;
+            var client = new GitHubClient(new ProductHeaderValue("KatHub-Updater"));
+            var latestRelease = client.Repository.Release.GetLatest("PaJauKat", "KatHub");
+            var onlineVersion = new Version(latestRelease.Result.TagName.TrimStart('v')); // Asumiendo que las etiquetas siguen el formato "vX.Y.Z"
+
+            // 1. Mostrar la versión actual apenas abre
+            lblVersion.Text = $"v{currentVersion?.ToString(3)}";
+            lblUpdate.Visibility = Visibility.Collapsed; // Oculto por defecto
+
+            AutoUpdater.ParseUpdateInfoEvent += (args) =>
+            {
+                args.UpdateInfo = new UpdateInfoEventArgs
+                {
+                    CurrentVersion = onlineVersion.ToString(),
+                    InstalledVersion = currentVersion,
+                    DownloadURL = latestRelease.Result.Assets.FirstOrDefault(a => a.Name.EndsWith(".exe"))?.BrowserDownloadUrl,
+                    ChangelogURL = latestRelease.Result.HtmlUrl
+                };
+            };
+
+            AutoUpdater.CheckForUpdateEvent += (args) =>
+            {
+                if (args.IsUpdateAvailable)
+                {
+                    // En lugar de abrir la ventana grande, mostramos nuestro aviso
+                    lblUpdate.Text = "¡Actualización disponible! (Click aquí)";
+                    lblUpdate.Visibility = Visibility.Visible;
+                    lblUpdate.Foreground = System.Windows.Media.Brushes.Orange; // Un color que resalte
+
+                    // Guardamos la info del update para usarla cuando hagan click
+                    lblUpdate.Tag = args;
+                }
+            };
+
+
+
+
+
+            AutoUpdater.Start("https://github.com/PaJauKat/KatHub");
+        }
+
+        private void LblUpdate_MouseDown(object sender, MouseButtonEventArgs e)
+        {
+            if (lblUpdate.Tag is UpdateInfoEventArgs args && args.IsUpdateAvailable)
+            {
+                
+                AutoUpdater.DownloadUpdate(args);
+
+            }
         }
 
         private static async Task<string> GetGitHubTokenFromConfig()
